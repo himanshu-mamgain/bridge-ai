@@ -31,16 +31,17 @@ export interface ImageInput {
 }
 
 export interface ChatOptions {
-  prompt: string;
+  prompt: string | any;
   model?: string;
   systemPrompt?: string;
-  messages?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+  messages?: Array<{ role: 'user' | 'assistant' | 'system'; content: string | any }>;
   maxTokens?: number;
   temperature?: number;
   tools?: Tool[];
   images?: ImageInput[];
   responseFormat?: 'text' | 'json' | { type: 'json_object'; schema?: any };
   memory?: boolean | { strategy: 'sliding-window' | 'summarize'; limit: number };
+  useToon?: boolean; // If true, serializes structured data in prompt/messages using TOON for token savings
 }
 
 export interface AIResponse {

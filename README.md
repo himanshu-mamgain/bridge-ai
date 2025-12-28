@@ -14,6 +14,7 @@
 - 🧠 **Agentic Nature**: Native support for tools (function calling) and smart memory.
 - 🖼️ **Multimodal**: Unified interface for vision-based prompts.
 - 💰 **Cost Auditing**: Automatic token tracking and cost estimation per request.
+- ⚡ **TOON Compression**: Save up to 40% on tokens by using TOON for structured data.
 - 🔄 **Heavy Duty**: Built-in retries with exponential backoff and provider fallbacks.
 
 ## 🚀 Installation
@@ -90,6 +91,16 @@ const client = new BridgeAIClient({
   provider: 'openai',
   fallbackProviders: ['gemini', 'claude'],
   retryOptions: { retries: 3 }
+});
+```
+
+### ⚡ TOON Token Compression
+Bridge AI is the first SDK to natively support **TOON** (Token-Oriented Object Notation). Use it to send complex structured data (like large arrays or objects) while saving up to 40% on token costs compared to JSON.
+
+```typescript
+const res = await client.chat({
+  prompt: { user: 'Alice', history: [...lots of data] },
+  useToon: true // Automatically serializes prompt to TOON
 });
 ```
 

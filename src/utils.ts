@@ -1,7 +1,24 @@
 import { createHash } from 'crypto';
+import { encode, decode } from '@toon-format/toon';
 
 export function generateHash(input: string): string {
   return createHash('sha256').update(input).digest('hex');
+}
+
+export function toTOON(obj: any): string {
+  try {
+    return encode(obj);
+  } catch (e) {
+    return JSON.stringify(obj);
+  }
+}
+
+export function fromTOON(str: string): any {
+  try {
+    return decode(str);
+  } catch (e) {
+    return JSON.parse(str);
+  }
 }
 
 export function calculateCost(provider: string, model: string, promptTokens: number, completionTokens: number): number {

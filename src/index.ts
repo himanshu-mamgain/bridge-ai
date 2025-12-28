@@ -6,7 +6,7 @@ import { ClaudeProvider } from './providers/claude';
 import { PerplexityProvider, DeepSeekProvider } from './providers/extra-providers';
 import { BaseAIProvider } from './providers/base';
 import { MockProvider } from './providers/mock';
-import { generateHash } from './utils';
+import { generateHash, toTOON } from './utils';
 
 export class BridgeAIClient {
   private config: BridgeAIConfig;
@@ -124,7 +124,6 @@ export class BridgeAIClient {
           if (options.memory.strategy === 'sliding-window') {
             this.history = this.history.slice(-(options.memory.limit * 2));
           }
-          // Summarization logic would go here
         }
       }
 
@@ -134,21 +133,36 @@ export class BridgeAIClient {
     }
   }
 
-  async chat(options: ChatOptions): Promise<AIResponse> {
+  private preprocessOptions(options: ChatOptions): ChatOptions {
     const opts = { ...options };
     if (opts.model) opts.model = this.resolveModel(this.config.provider, opts.model);
+    
+    // Automatic TOON compression
+    if (opts.useToon) {
+      if (typeof opts.prompt === 'object') {
+        opts.prompt = toTOON(opts.prompt);
+      }
+      if (opts.messages) {
+        opts.messages = opts.messages.map(m => ({
+          ...m,
+          content: typeof m.content === 'object' ? toTOON(m.content) : m.content
+        }));
+      }
+    }
+
     if (opts.memory) {
       opts.messages = [...(this.history || []), ...(opts.messages || [])];
     }
+    return opts;
+  }
+
+  async chat(options: ChatOptions): Promise<AIResponse> {
+    const opts = this.preprocessOptions(options);
     return this.send(new ChatCommand(opts));
   }
 
   async *chatStream(options: ChatOptions): AsyncGenerator<StreamChunk> {
-    const opts = { ...options };
-    if (opts.model) opts.model = this.resolveModel(this.config.provider, opts.model);
-    if (opts.memory) {
-      opts.messages = [...(this.history || []), ...(opts.messages || [])];
-    }
+    const opts = this.preprocessOptions(options);
     const stream = this.providerInstance.chatStream(opts);
     for await (const chunk of stream) {
       yield chunk;
