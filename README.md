@@ -8,11 +8,13 @@
 ## ✨ Features
 
 - 🎯 **Unified Interface**: One SDK to rule them all. Switch providers by changing a single config line.
+- 🌊 **Real-time Streaming**: Unified `AsyncIterable` stream support across all providers.
 - 🏗️ **AWS SDK v3 Inspired**: Familiar Client-Command pattern for modularity.
-- 🛡️ **Type-Safe**: Written in TypeScript with full type definitions.
-- 🚀 **Environment Conscious**: Automatically picks up API keys from environment variables.
-- ⚙️ **Configurable**: Define pre-instructions (system prompts) at the client level or per request.
-- 📦 **Lightweight**: Zero-dependency core (using official SDKs under the hood for reliability).
+- 🛡️ **Structured Output**: Built-in support for JSON mode and Schema validation.
+- 🧠 **Agentic Nature**: Native support for tools (function calling) and smart memory.
+- 🖼️ **Multimodal**: Unified interface for vision-based prompts.
+- 💰 **Cost Auditing**: Automatic token tracking and cost estimation per request.
+- 🔄 **Heavy Duty**: Built-in retries with exponential backoff and provider fallbacks.
 
 ## 🚀 Installation
 
@@ -23,96 +25,106 @@ npm install bridge-ai
 ## 🛠️ Quick Start
 
 ### 1. Set up your Environment Variables
-Add your API keys to your `.env` file:
 ```env
 OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=...
 ANTHROPIC_API_KEY=...
-PERPLEXITY_API_KEY=...
-DEEPSEEK_API_KEY=...
 ```
 
-### 2. Basic Usage (TS/JS)
-
+### 2. Basic Usage
 ```typescript
-import { BridgeAIClient, ChatCommand } from 'bridge-ai';
+import { BridgeAIClient } from 'bridge-ai';
 
-// Initialize the client
-const client = new BridgeAIClient({
-  provider: 'openai', // or 'gemini', 'claude', 'perplexity', 'deepseek'
-  preInstructions: 'You are a helpful coding assistant.'
+const client = new BridgeAIClient({ provider: 'openai' });
+
+const response = await client.chat({ 
+  prompt: 'What is the future of AI?' 
 });
 
-// Use the Command Pattern (AWS SDK v3 Style)
-const command = new ChatCommand({
-  prompt: 'How do I use Bridge AI?'
-});
-
-const response = await client.send(command);
 console.log(response.text);
+console.log(`Cost: $${response.cost}`); // $0.00004
 ```
 
-const response = await client.chat({
-  prompt: 'Write a story',
-  temperature: 0.7,
-  maxTokens: 500
+## 🧠 Advanced Features
+
+### 🌊 Unified Streaming
+Get real-time responses with a single unified interface.
+
+```typescript
+const stream = client.chatStream({ prompt: 'Write a long story...' });
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.text);
+}
+```
+
+### 🛡️ Structured Output (JSON Mode)
+Force the model to return valid JSON.
+
+```typescript
+const res = await client.chat({
+  prompt: 'List 3 fruits',
+  responseFormat: 'json'
+});
+console.log(res.json); // [{name: "Apple"}, ...]
+```
+
+### 🖼️ Vision (Multimodal)
+Send images to any supported model consistently.
+
+```typescript
+const res = await client.chat({
+  prompt: 'What is inside this image?',
+  images: [{ 
+    type: 'url', 
+    data: 'https://example.com/photo.jpg' 
+  }]
 });
 ```
 
-## 🧠 Agentic & Enterprise Features
-
-### 🔄 Automatic Fallbacks
-Ensure high availability by defining fallback providers. If the primary provider fails, Bridge AI automatically tries the next one.
+### 🔄 Fallbacks & Retries
+Ensure 100% uptime by defining fallbacks. Bridge AI also automatically retries on rate limits (429) or server errors.
 
 ```typescript
 const client = new BridgeAIClient({
   provider: 'openai',
-  fallbackProviders: ['gemini', 'claude']
+  fallbackProviders: ['gemini', 'claude'],
+  retryOptions: { retries: 3 }
 });
 ```
 
-### 🔐 Prompt Hashing & Persistence
-Automatically hash prompts for caching or auditing. Use the `onResponse` hook to save results to your database.
+### 🔐 Persistence Hooks & Hashing
+Every prompt is hashed (SHA-256). Use the `onResponse` hook to save to your database.
 
 ```typescript
 const client = new BridgeAIClient({
-  provider: 'openai',
-  onResponse: async ({ prompt, response, hash }) => {
-    // Save to your DB
-    console.log(`Saving prompt with hash: ${hash}`);
-    await db.logs.create({ prompt, responseText: response.text, hash });
+  onResponse: ({ prompt, response, hash }) => {
+    db.save({ hash, text: response.text });
   }
 });
 ```
 
-### 🛠️ Agentic Tools (Function Calling)
-Pass tools to the model and handle structured responses across different providers.
-
+### 🛠️ Agentic Tools
 ```typescript
 const response = await client.chat({
-  prompt: 'What is the weather in London?',
+  prompt: 'What is the weather?',
   tools: [{
     name: 'getWeather',
-    description: 'Get current weather',
-    parameters: {
-      type: 'object',
-      properties: { location: { type: 'string' } }
-    }
+    description: 'Get weather',
+    parameters: { ... }
   }]
 });
 
 if (response.toolCalls) {
-  // Handle your tool logic here
+  // Execute function calls
 }
 ```
 
-### 💾 Smart Memory
-Maintain conversation state automatically.
+### 🧪 Testing & Mocking
+Test your app without spending a cent.
 
 ```typescript
-await client.chat({ prompt: 'My name is Alice', memory: true });
-const res = await client.chat({ prompt: 'What is my name?', memory: true });
-console.log(res.text); // "Your name is Alice"
+const client = new BridgeAIClient({ provider: 'mock' });
 ```
 
 ## 🤝 Supported Providers
@@ -126,7 +138,7 @@ console.log(res.text); // "Your name is Alice"
 | **DeepSeek** | `deepseek` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
 
 ## 📖 Documentation
-For full documentation and advanced examples, visit our [GitHub Pages](https://himanshu-mamgain.github.io/bridge-ai).
+Visit our [GitHub Pages](https://himanshu-mamgain.github.io/bridge-ai) for full API reference.
 
 ## 📄 License
 MIT © [Himanshu Mamgain](https://github.com/himanshu-mamgain)

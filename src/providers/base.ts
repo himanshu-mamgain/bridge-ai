@@ -1,4 +1,4 @@
-import { AIResponse, ChatOptions } from '../types';
+import { AIResponse, ChatOptions, StreamChunk } from '../types';
 
 export abstract class BaseAIProvider {
   protected apiKey: string;
@@ -10,4 +10,5 @@ export abstract class BaseAIProvider {
   }
 
   abstract chat(options: ChatOptions): Promise<AIResponse>;
+  abstract chatStream(options: ChatOptions): AsyncIterable<StreamChunk>;
 }

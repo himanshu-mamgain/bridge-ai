@@ -1,10 +1,11 @@
 export * from './types';
-import { BridgeAIConfig, ChatOptions, AIResponse, Provider } from './types';
+import { BridgeAIConfig, ChatOptions, AIResponse, Provider, StreamChunk } from './types';
 import { OpenAIProvider } from './providers/openai';
 import { GeminiProvider } from './providers/gemini';
 import { ClaudeProvider } from './providers/claude';
 import { PerplexityProvider, DeepSeekProvider } from './providers/extra-providers';
 import { BaseAIProvider } from './providers/base';
+import { MockProvider } from './providers/mock';
 import { generateHash } from './utils';
 
 export class BridgeAIClient {
@@ -18,7 +19,7 @@ export class BridgeAIClient {
       apiKey: config.apiKey || this.getApiKeyFromEnv(config.provider),
     };
 
-    if (!this.config.apiKey) {
+    if (!this.config.apiKey && config.provider !== 'mock') {
       throw new Error(`API Key for ${config.provider} is missing. Please provide it in config or set relevant environment variable.`);
     }
 
@@ -26,42 +27,69 @@ export class BridgeAIClient {
   }
 
   private getApiKeyFromEnv(provider: Provider): string | undefined {
-    const envMap: Record<Provider, string> = {
+    const envMap: Record<Provider, string | undefined> = {
       openai: 'OPENAI_API_KEY',
       gemini: 'GEMINI_API_KEY',
       claude: 'ANTHROPIC_API_KEY',
       perplexity: 'PERPLEXITY_API_KEY',
       deepseek: 'DEEPSEEK_API_KEY',
+      mock: undefined,
     };
-    return process.env[envMap[provider]];
+    const envVar = envMap[provider];
+    return envVar ? process.env[envVar] : 'mock-key';
   }
 
   private createProvider(config: BridgeAIConfig): BaseAIProvider {
-    const apiKey = config.apiKey || this.getApiKeyFromEnv(config.provider);
-    if (!apiKey) throw new Error(`API key missing for ${config.provider}`);
+    const apiKey = config.apiKey || this.getApiKeyFromEnv(config.provider) || 'mock-key';
+    const model = this.resolveModel(config.provider, config.model);
 
     switch (config.provider) {
       case 'openai':
-        return new OpenAIProvider(apiKey, config.preInstructions, config.baseUrl);
+        return new OpenAIProvider(apiKey, config.preInstructions, config.baseUrl, model);
       case 'gemini':
-        return new GeminiProvider(apiKey, config.preInstructions);
+        return new GeminiProvider(apiKey, config.preInstructions, model);
       case 'claude':
-        return new ClaudeProvider(apiKey, config.preInstructions);
+        return new ClaudeProvider(apiKey, config.preInstructions, model);
       case 'perplexity':
-        return new PerplexityProvider(apiKey, config.preInstructions);
+        return new PerplexityProvider(apiKey, config.preInstructions, model);
       case 'deepseek':
-        return new DeepSeekProvider(apiKey, config.preInstructions);
+        return new DeepSeekProvider(apiKey, config.preInstructions, model);
+      case 'mock':
+        return new MockProvider();
       default:
         throw new Error(`Unsupported provider: ${config.provider}`);
     }
   }
 
+  private resolveModel(provider: Provider, model?: string): string | undefined {
+    if (this.config.modelAliases && model && this.config.modelAliases[model]) {
+      return this.config.modelAliases[model];
+    }
+    return model;
+  }
+
+  private async withRetry<T>(fn: () => Promise<T>): Promise<T> {
+    const { retries = 2, factor = 2, minTimeout = 1000 } = this.config.retryOptions || {};
+    let attempt = 0;
+    while (true) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        const isRetryable = [429, 500, 502, 503, 504].includes(error.status || error.statusCode);
+        if (attempt >= retries || !isRetryable) throw error;
+        const delay = minTimeout * Math.pow(factor, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempt++;
+      }
+    }
+  }
+
   /**
-   * Send a command with automatic retry/fallback and post-processing (hooks/hashing).
+   * Send a command with automatic retry/fallback and post-processing.
    */
   async send<T extends AIResponse>(command: Command<T>): Promise<T> {
     try {
-      const response = await command.execute(this.providerInstance);
+      const response = await this.withRetry(() => command.execute(this.providerInstance));
       await this.postProcess(command, response);
       return response;
     } catch (error) {
@@ -90,6 +118,14 @@ export class BridgeAIClient {
       if (options.memory) {
         this.history.push({ role: 'user', content: options.prompt });
         this.history.push({ role: 'assistant', content: response.text });
+        
+        // Handle Advanced Memory Strategies
+        if (typeof options.memory === 'object') {
+          if (options.memory.strategy === 'sliding-window') {
+            this.history = this.history.slice(-(options.memory.limit * 2));
+          }
+          // Summarization logic would go here
+        }
       }
 
       if (this.config.onResponse) {
@@ -100,10 +136,23 @@ export class BridgeAIClient {
 
   async chat(options: ChatOptions): Promise<AIResponse> {
     const opts = { ...options };
+    if (opts.model) opts.model = this.resolveModel(this.config.provider, opts.model);
     if (opts.memory) {
       opts.messages = [...(this.history || []), ...(opts.messages || [])];
     }
     return this.send(new ChatCommand(opts));
+  }
+
+  async *chatStream(options: ChatOptions): AsyncGenerator<StreamChunk> {
+    const opts = { ...options };
+    if (opts.model) opts.model = this.resolveModel(this.config.provider, opts.model);
+    if (opts.memory) {
+      opts.messages = [...(this.history || []), ...(opts.messages || [])];
+    }
+    const stream = this.providerInstance.chatStream(opts);
+    for await (const chunk of stream) {
+      yield chunk;
+    }
   }
 }
 

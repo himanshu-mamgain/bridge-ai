@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { BaseAIProvider } from './base';
-import { AIResponse, ChatOptions } from '../types';
+import { AIResponse, ChatOptions, StreamChunk } from '../types';
+import { calculateCost } from '../utils';
 
 export class OpenAIProvider extends BaseAIProvider {
   private client: OpenAI;
@@ -15,10 +16,9 @@ export class OpenAIProvider extends BaseAIProvider {
     this.model = model;
   }
 
-  async chat(options: ChatOptions): Promise<AIResponse> {
+  private buildMessages(options: ChatOptions) {
     const messages: any[] = [];
 
-    // Add pre-instructions (system prompt)
     if (this.preInstructions || options.systemPrompt) {
       messages.push({
         role: 'system',
@@ -26,16 +26,31 @@ export class OpenAIProvider extends BaseAIProvider {
       });
     }
 
-    // Add history if provided
     if (options.messages) {
       messages.push(...options.messages);
     }
 
-    // Add current prompt
-    messages.push({ role: 'user', content: options.prompt });
+    const content: any[] = [{ type: 'text', text: options.prompt }];
+    
+    if (options.images) {
+      options.images.forEach(img => {
+        content.push({
+          type: 'image_url',
+          image_url: { url: img.type === 'base64' ? `data:${img.mediaType || 'image/jpeg'};base64,${img.data}` : img.data }
+        });
+      });
+    }
+
+    messages.push({ role: 'user', content });
+    return messages;
+  }
+
+  async chat(options: ChatOptions): Promise<AIResponse> {
+    const messages = this.buildMessages(options);
+    const model = options.model || this.model;
 
     const completion = await this.client.chat.completions.create({
-      model: this.model,
+      model: model,
       messages: messages,
       tools: options.tools?.map(t => ({
         type: 'function',
@@ -45,6 +60,8 @@ export class OpenAIProvider extends BaseAIProvider {
           parameters: t.parameters
         }
       })),
+      response_format: options.responseFormat === 'json' ? { type: 'json_object' } : 
+                       (typeof options.responseFormat === 'object' ? options.responseFormat : undefined),
       max_tokens: options.maxTokens,
       temperature: options.temperature,
     });
@@ -54,16 +71,41 @@ export class OpenAIProvider extends BaseAIProvider {
       args: JSON.parse(tc.function.arguments)
     }));
 
+    const text = completion.choices[0]?.message?.content || '';
+    const promptTokens = completion.usage?.prompt_tokens || 0;
+    const completionTokens = completion.usage?.completion_tokens || 0;
+
     return {
-      text: completion.choices[0]?.message?.content || '',
-      hash: '', // Set by client
+      text,
+      hash: '', 
+      json: options.responseFormat ? (text ? JSON.parse(text) : undefined) : undefined,
       usage: {
-        promptTokens: completion.usage?.prompt_tokens || 0,
-        completionTokens: completion.usage?.completion_tokens || 0,
+        promptTokens,
+        completionTokens,
         totalTokens: completion.usage?.total_tokens || 0,
       },
+      cost: calculateCost('openai', model, promptTokens, completionTokens),
       toolCalls,
       raw: completion,
     };
+  }
+
+  async *chatStream(options: ChatOptions): AsyncIterable<StreamChunk> {
+    const messages = this.buildMessages(options);
+    const model = options.model || this.model;
+    const stream = await this.client.chat.completions.create({
+      model: model,
+      messages: messages,
+      stream: true,
+      max_tokens: options.maxTokens,
+      temperature: options.temperature,
+    });
+
+    for await (const chunk of stream) {
+      yield {
+        text: chunk.choices[0]?.delta?.content || '',
+        isDone: chunk.choices[0]?.finish_reason !== null
+      };
+    }
   }
 }
