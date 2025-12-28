@@ -52,23 +52,67 @@ const response = await client.send(command);
 console.log(response.text);
 ```
 
-## 📐 Advanced Configuration
-
-### Provider Specific Models
-You can specify models and other parameters:
-
-```typescript
-const client = new BridgeAIClient({
-  provider: 'claude',
-  apiKey: 'custom-key-override', // Optional: Overrides env var
-  preInstructions: 'System prompt goes here'
-});
-
 const response = await client.chat({
   prompt: 'Write a story',
   temperature: 0.7,
   maxTokens: 500
 });
+```
+
+## 🧠 Agentic & Enterprise Features
+
+### 🔄 Automatic Fallbacks
+Ensure high availability by defining fallback providers. If the primary provider fails, Bridge AI automatically tries the next one.
+
+```typescript
+const client = new BridgeAIClient({
+  provider: 'openai',
+  fallbackProviders: ['gemini', 'claude']
+});
+```
+
+### 🔐 Prompt Hashing & Persistence
+Automatically hash prompts for caching or auditing. Use the `onResponse` hook to save results to your database.
+
+```typescript
+const client = new BridgeAIClient({
+  provider: 'openai',
+  onResponse: async ({ prompt, response, hash }) => {
+    // Save to your DB
+    console.log(`Saving prompt with hash: ${hash}`);
+    await db.logs.create({ prompt, responseText: response.text, hash });
+  }
+});
+```
+
+### 🛠️ Agentic Tools (Function Calling)
+Pass tools to the model and handle structured responses across different providers.
+
+```typescript
+const response = await client.chat({
+  prompt: 'What is the weather in London?',
+  tools: [{
+    name: 'getWeather',
+    description: 'Get current weather',
+    parameters: {
+      type: 'object',
+      properties: { location: { type: 'string' } }
+    }
+  }]
+});
+
+if (response.toolCalls) {
+  // Handle your tool logic here
+}
+```
+
+### 💾 Smart Memory
+Maintain conversation state automatically.
+
+```typescript
+await client.chat({ prompt: 'My name is Alice', memory: true });
+const res = await client.chat({ prompt: 'What is my name?', memory: true });
+console.log(res.text); // "Your name is Alice"
 ```
 
 ## 🤝 Supported Providers

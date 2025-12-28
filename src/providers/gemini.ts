@@ -17,7 +17,14 @@ export class GeminiProvider extends BaseAIProvider {
     
     const model = this.genAI.getGenerativeModel({ 
       model: this.model,
-      ...(systemPrompt ? { systemInstruction: systemPrompt } : {})
+      ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
+      tools: options.tools ? [{
+        functionDeclarations: options.tools.map(t => ({
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters as any
+        }))
+      }] : undefined
     });
 
     const chat = model.startChat({
@@ -35,8 +42,16 @@ export class GeminiProvider extends BaseAIProvider {
     const response = await result.response;
     const usageMetadata = response.usageMetadata;
     
+    const functionCalls = response.candidates?.[0]?.content?.parts
+      ?.filter(p => p.functionCall)
+      .map(p => ({
+        name: p.functionCall!.name,
+        args: p.functionCall!.args
+      }));
+
     return {
       text: response.text(),
+      hash: '', // Set by client
       usage: usageMetadata ? {
         promptTokens: usageMetadata.promptTokenCount,
         completionTokens: usageMetadata.candidatesTokenCount,
@@ -46,6 +61,7 @@ export class GeminiProvider extends BaseAIProvider {
         completionTokens: 0,
         totalTokens: 0,
       },
+      toolCalls: functionCalls,
       raw: response,
     };
   }

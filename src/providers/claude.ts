@@ -31,15 +31,29 @@ export class ClaudeProvider extends BaseAIProvider {
       temperature: options.temperature,
       system: system,
       messages: messages,
+      tools: options.tools?.map(t => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.parameters as any
+      }))
     });
+
+    const toolCalls = response.content
+      .filter(c => c.type === 'tool_use')
+      .map((tc: any) => ({
+        name: tc.name,
+        args: tc.input
+      }));
 
     return {
       text: response.content[0].type === 'text' ? response.content[0].text : '',
+      hash: '', // Set by client
       usage: {
         promptTokens: response.usage.input_tokens,
         completionTokens: response.usage.output_tokens,
         totalTokens: response.usage.input_tokens + response.usage.output_tokens,
       },
+      toolCalls,
       raw: response,
     };
   }

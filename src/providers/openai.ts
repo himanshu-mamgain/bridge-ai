@@ -37,17 +37,32 @@ export class OpenAIProvider extends BaseAIProvider {
     const completion = await this.client.chat.completions.create({
       model: this.model,
       messages: messages,
+      tools: options.tools?.map(t => ({
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters
+        }
+      })),
       max_tokens: options.maxTokens,
       temperature: options.temperature,
     });
 
+    const toolCalls = completion.choices[0]?.message?.tool_calls?.map(tc => ({
+      name: tc.function.name,
+      args: JSON.parse(tc.function.arguments)
+    }));
+
     return {
       text: completion.choices[0]?.message?.content || '',
+      hash: '', // Set by client
       usage: {
         promptTokens: completion.usage?.prompt_tokens || 0,
         completionTokens: completion.usage?.completion_tokens || 0,
         totalTokens: completion.usage?.total_tokens || 0,
       },
+      toolCalls,
       raw: completion,
     };
   }
