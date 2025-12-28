@@ -1,0 +1,38 @@
+# Source files
+src/
+*.ts
+tsconfig.json
+
+# Documentation
+docs/
+.vitepress/
+
+# Examples and Tests
+examples/
+tests/
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Configuration and Tooling
+.github/
+.vscode/
+.husky/
+.agent/
+.eslintignore
+.eslintrc.json
+.prettierignore
+.prettierrc
+jest.config.js
+tsup.config.ts
+package-lock.json
+
+# Environment and Logs
+.env
+.env.*
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
