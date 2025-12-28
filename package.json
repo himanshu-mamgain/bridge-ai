@@ -1,5 +1,5 @@
 {
-  "name": "@himanshu-mamgain/bridge-ai",
+  "name": "bridge-ai",
   "version": "1.0.0",
   "description": "Unified AI SDK for OpenAI, Gemini, Claude, Perplexity, and DeepSeek. Designed like AWS SDK v3.",
   "main": "./dist/index.js",
@@ -8,9 +8,6 @@
   "files": [
     "dist"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "dev": "tsup src/index.ts --format cjs,esm --watch --dts",
