@@ -15,7 +15,7 @@ The `BridgeAIClient` is the main entry point. It manages configurations and prov
 Following AWS SDK v3, we use a command-based pattern. This makes your code more modular and easier to test.
 
 ```typescript
-import { BridgeAIClient, ChatCommand } from '@himanshu-mamgain/bridge-ai'
+import { BridgeAIClient, ChatCommand } from 'bridge-ai'
 
 const client = new BridgeAIClient({ provider: 'gemini' })
 const response = await client.send(new ChatCommand({ prompt: 'Hello!' }))

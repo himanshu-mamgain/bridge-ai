@@ -1,6 +1,6 @@
 # 🌉 Bridge AI SDK
 
-[![npm version](https://img.shields.io/npm/v/@himanshu-mamgain/bridge-ai.svg?style=flat-square)](https://www.npmjs.com/package/@himanshu-mamgain/bridge-ai)
+[![npm version](https://img.shields.io/npm/v/bridge-ai.svg?style=flat-square)](https://www.npmjs.com/package/bridge-ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 **Bridge AI** is a unified, type-safe SDK for interacting with multiple AI providers (OpenAI, Gemini, Claude, Perplexity, and DeepSeek). Designed with the elegance and modularity of **AWS SDK v3**, it provides a seamless interface whether you're building a simple bot or a complex multi-model application.
@@ -17,7 +17,7 @@
 ## 🚀 Installation
 
 ```bash
-npm install @himanshu-mamgain/bridge-ai
+npm install bridge-ai
 ```
 
 ## 🛠️ Quick Start
@@ -35,7 +35,7 @@ DEEPSEEK_API_KEY=...
 ### 2. Basic Usage (TS/JS)
 
 ```typescript
-import { BridgeAIClient, ChatCommand } from '@himanshu-mamgain/bridge-ai';
+import { BridgeAIClient, ChatCommand } from 'bridge-ai';
 
 // Initialize the client
 const client = new BridgeAIClient({

@@ -1,6 +1,6 @@
 {
   "name": "bridge-ai",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Unified AI SDK for OpenAI, Gemini, Claude, Perplexity, and DeepSeek. Designed like AWS SDK v3.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
